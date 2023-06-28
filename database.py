@@ -10,6 +10,8 @@ class Database:
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
 
+        print(self.host)
+
         self.cnx = mysql.connector.connect(
             host=self.host,
             port=self.port,
