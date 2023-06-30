@@ -23,7 +23,7 @@ class Database:
         self.cursor = self.cnx.cursor()
 
         create_table_query = """
-            CREATE TABLE guardians (
+            CREATE TABLE IF NOT EXISTS guardians (
               address VARCHAR(255) NOT NULL,
               info VARCHAR(255) NOT NULL,
               type VARCHAR(50) NOT NULL,

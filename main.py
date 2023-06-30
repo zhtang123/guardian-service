@@ -30,4 +30,4 @@ def get_addresses_by_guardian():
     return jsonify({'addresses': addresses})
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0", port=12001)
