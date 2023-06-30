@@ -1,5 +1,7 @@
 import mysql.connector
 import os
+import hashlib
+import logging
 
 class Database:
     def __init__(self):
@@ -9,8 +11,6 @@ class Database:
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
-
-        print(self.host)
 
         self.cnx = mysql.connector.connect(
             host=self.host,
@@ -23,26 +23,29 @@ class Database:
         self.cursor = self.cnx.cursor()
 
         create_table_query = """
-            CREATE TABLE IF NOT EXISTS guardians (
+            CREATE TABLE IF NOT EXISTS guardians(
+              signature_hash VARCHAR(64) PRIMARY KEY,
               address VARCHAR(255) NOT NULL,
               info VARCHAR(255) NOT NULL,
               type VARCHAR(50) NOT NULL,
-              PRIMARY KEY (address, info)
+              signature VARCHAR(255) NOT NULL
             );
         """
 
         try:
             self.cursor.execute(create_table_query)
         except mysql.connector.Error as error:
-            print("Error creating table:", error)
+            logging.error("create table error")
 
     def __del__(self):
         self.cursor.close()
         self.cnx.close()
 
-    def add_guardian(self, address, guardian_type, guardian_info):
-        insert_query = "INSERT INTO guardians (address, type, info) VALUES (%s, %s, %s)"
-        insert_data = (address, guardian_type, guardian_info)
+    def add_guardian(self, address, guardian_type, guardian_info, signature):
+        signature_hash = hashlib.sha256(signature.encode()).hexdigest()
+
+        insert_query = "INSERT INTO guardians (signature_hash, address, type, info, signature) VALUES (%s, %s, %s, %s, %s)"
+        insert_data = (signature_hash, address, guardian_type, guardian_info, signature)
         self.cursor.execute(insert_query, insert_data)
         self.cnx.commit()
 
@@ -54,6 +57,7 @@ class Database:
         guardians = []
         for row in results:
             guardian = {
+                'guardian': address,
                 'type': row[1],
                 'info': row[2]
             }
@@ -61,11 +65,3 @@ class Database:
 
         return guardians
 
-    def get_addresses_by_guardian(self, guardian_type):
-        query = "SELECT address FROM guardians WHERE type = %s"
-        self.cursor.execute(query, (guardian_type,))
-        results = self.cursor.fetchall()
-
-        addresses = [row[0] for row in results]
-
-        return addresses
