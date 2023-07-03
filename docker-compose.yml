@@ -12,4 +12,4 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
-
+    restart: always
