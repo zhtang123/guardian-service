@@ -78,7 +78,7 @@ class Database:
     def add_guardian(self, address, guardian_type, guardian_info, signature):
         signature_hash = hashlib.sha256(signature.encode()).hexdigest()
 
-        insert_query = "INSERT INTO guardians (signature_hash, address, type, info, signature) VALUES (%s, %s, %s, %s, %s)"
+        insert_query = "INSERT IGNORE INTO guardians (signature_hash, address, type, info, signature) VALUES (%s, %s, %s, %s, %s)"
         insert_data = (signature_hash, address, guardian_type, guardian_info, signature)
 
         self.execute_query(insert_query, insert_data)
