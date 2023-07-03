@@ -17,7 +17,8 @@ class Database:
         self.connect_and_initialize()
 
     def connect_and_initialize(self):
-        for retry in range(self.MAX_RETRIES):
+        retries = 0
+        while retries < self.MAX_RETRIES:
             try:
                 self.cnx = mysql.connector.connect(
                     host=self.host,
@@ -40,28 +41,32 @@ class Database:
                 """
 
                 self.cursor.execute(create_table_query)
-
+                retries = 0
                 break
             except mysql.connector.Error as error:
                 logging.error("Failed to connect to database: {}".format(error))
-                if retry < self.MAX_RETRIES - 1:
+                if retries < self.MAX_RETRIES - 1:
                     logging.info("Retrying in {} seconds...".format(self.RETRY_DELAY))
                     time.sleep(self.RETRY_DELAY)
+                    retries += 1
                 else:
                     raise Exception("Could not connect to the database after {} attempts".format(self.MAX_RETRIES))
 
     def execute_query(self, query, params=None):
-        for retry in range(self.MAX_RETRIES):
+        retries = 0
+        while retries < self.MAX_RETRIES:
             try:
                 if self.cnx.is_connected() == False:
                     self.connect_and_initialize()
                 self.cursor.execute(query, params)
+                retries = 0
                 return True
             except mysql.connector.Error as error:
                 logging.error("Failed to execute query: {}".format(error))
-                if retry < self.MAX_RETRIES - 1:
+                if retries < self.MAX_RETRIES - 1:
                     logging.info("Retrying in {} seconds...".format(self.RETRY_DELAY))
                     time.sleep(self.RETRY_DELAY)
+                    retries += 1
                 else:
                     raise Exception("Could not execute the query after {} attempts".format(self.MAX_RETRIES))
         return False
