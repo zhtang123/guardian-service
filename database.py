@@ -41,6 +41,16 @@ class Database:
                 """
 
                 self.cursor.execute(create_table_query)
+
+                create_table_query = """
+                    CREATE TABLE IF NOT EXISTS guardian_wallet(
+                      guardian_address VARCHAR(255) NOT NULL,
+                      wallet_address VARCHAR(255) NOT NULL,
+                      PRIMARY KEY (guardian_address, wallet_address)
+                    );
+                """
+
+                self.cursor.execute(create_table_query)
                 retries = 0
                 break
             except mysql.connector.Error as error:
@@ -83,6 +93,39 @@ class Database:
 
         self.execute_query(insert_query, insert_data)
         self.cnx.commit()
+
+    def add_wallet_guardian(self, guardian_address, wallet_address):
+        insert_query = "INSERT IGNORE INTO guardian_wallet (guardian_address, wallet_address) VALUES (%s, %s)"
+        insert_data = (guardian_address, wallet_address)
+        self.execute_query(insert_query, insert_data)
+        self.cnx.commit()
+
+
+    def get_guardians_by_wallet(self, wallet_address):
+        query = """
+            SELECT guardians.address, guardians.type, guardians.info 
+            FROM guardian_wallet JOIN guardians ON guardian_wallet.guardian_address = guardians.address 
+            WHERE guardian_wallet.wallet_address = %s
+        """
+        if self.execute_query(query, (wallet_address,)):
+            results = self.cursor.fetchall()
+
+            guardians = []
+            for row in results:
+                guardian = {
+                    'guardian': row[0],
+                    'type': row[1],
+                    'info': row[2]
+                }
+                guardians.append(guardian)
+            return guardians
+
+    def get_wallets_by_guardian(self, guardian_address):
+        query = "SELECT wallet_address FROM guardian_wallet WHERE guardian_address = %s"
+        if self.execute_query(query, (guardian_address,)):
+            results = self.cursor.fetchall()
+            return [wallet_address[0] for wallet_address in results]
+
 
     def get_guardians_by_address(self, address):
         query = "SELECT * FROM guardians WHERE address = %s"
