@@ -54,6 +54,15 @@ class Database:
 
                     cursor.execute(create_table_query)
 
+                    create_table_query = """
+                        CREATE TABLE IF NOT EXISTS wallets(
+                          address VARCHAR(255) PRIMARY KEY,
+                          threshold INT NOT NULL
+                        );
+                    """
+
+                    cursor.execute(create_table_query)
+
                 self.cnx.commit()
                 retries = 0
                 break
@@ -100,6 +109,13 @@ class Database:
         insert_data = (guardian_address, wallet_address)
         self.execute_query(insert_query, insert_data)
 
+    def change_threshold(self, address, threshold):
+        logging.info("change_threshold_start")
+        query = "INSERT INTO wallets (address, threshold) VALUES (%s, %s) ON DUPLICATE KEY UPDATE threshold = %s"
+        data = (address, threshold, threshold)
+        self.execute_query(query, data)
+        logging.info("change_threshold done")
+
     def del_wallet_guardian(self, guardian_address, wallet_address):
         delete_query = "DELETE FROM guardian_wallet WHERE guardian_address = %s AND wallet_address = %s"
         delete_data = (guardian_address, wallet_address)
@@ -114,13 +130,21 @@ class Database:
     def get_guardians_by_wallet(self, wallet_address):
         query = """
             SELECT guardians.address, guardians.type, guardians.info 
-            FROM guardian_wallet JOIN guardians ON guardian_wallet.guardian_address = guardians.address 
+            FROM guardian_wallet JOIN guardians ON guardian_wallet.guardian_address = guardians.address
             WHERE guardian_wallet.wallet_address = %s
         """
         results = None
         with self.cnx.cursor() as cursor:
             cursor.execute(query, (wallet_address,))
             results = cursor.fetchall()
+
+        query = """
+            SELECT threshold 
+            FROM wallets WHERE wallets.address = %s
+        """
+        with self.cnx.cursor() as cursor:
+            cursor.execute(query, (wallet_address,))
+            threshold = cursor.fetchall()[0]['threshold']
 
         guardians = []
         for row in results:
@@ -130,7 +154,7 @@ class Database:
                 'info': row['info']
             }
             guardians.append(guardian)
-        return guardians
+        return threshold, guardians
 
     def get_wallets_by_guardian(self, guardian_address):
         query = "SELECT wallet_address FROM guardian_wallet WHERE guardian_address = %s"
