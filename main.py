@@ -1,13 +1,9 @@
-import os
-
 from flask import Flask, request, jsonify
 import logging
 from database import Database
-from wallet_verifier import WalletVerifier
+from verifiers.wallet_verifier import WalletVerifier
 
 logging.basicConfig(level=logging.INFO)
-
-
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -91,4 +87,4 @@ def query_guardian_by_wallet(wallet_address):
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=12005)
+    app.run(host="0.0.0.0", port=12001)

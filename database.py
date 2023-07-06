@@ -1,4 +1,4 @@
-import mysql.connector
+import pymysql.cursors
 import os
 import hashlib
 import logging
@@ -21,40 +21,43 @@ class Database:
         retries = 0
         while retries < self.MAX_RETRIES:
             try:
-                self.cnx = mysql.connector.connect(
+                self.cnx = pymysql.connect(
                     host=self.host,
-                    port=self.port,
+                    port=int(self.port),
                     user=self.user,
                     password=self.password,
-                    database=self.database
+                    db=self.database,
+                    charset='utf8mb4',
+                    cursorclass=pymysql.cursors.DictCursor
                 )
 
-                self.cursor = self.cnx.cursor()
+                with self.cnx.cursor() as cursor:
 
-                create_table_query = """
-                    CREATE TABLE IF NOT EXISTS guardians(
-                      signature_hash VARCHAR(64) PRIMARY KEY,
-                      address VARCHAR(255) NOT NULL,
-                      info VARCHAR(255) NOT NULL,
-                      type VARCHAR(50) NOT NULL,
-                      signature VARCHAR(255) NOT NULL
-                    );
-                """
+                    create_table_query = """
+                        CREATE TABLE IF NOT EXISTS guardians(
+                          address VARCHAR(255) PRIMARY KEY,
+                          info VARCHAR(255) NOT NULL,
+                          type VARCHAR(50) NOT NULL,
+                          signature VARCHAR(255) NOT NULL
+                        );
+                    """
 
-                self.cursor.execute(create_table_query)
+                    cursor.execute(create_table_query)
 
-                create_table_query = """
-                    CREATE TABLE IF NOT EXISTS guardian_wallet(
-                      guardian_address VARCHAR(255) NOT NULL,
-                      wallet_address VARCHAR(255) NOT NULL,
-                      PRIMARY KEY (guardian_address, wallet_address)
-                    );
-                """
+                    create_table_query = """
+                        CREATE TABLE IF NOT EXISTS guardian_wallet(
+                          guardian_address VARCHAR(255) NOT NULL,
+                          wallet_address VARCHAR(255) NOT NULL,
+                          PRIMARY KEY (guardian_address, wallet_address)
+                        );
+                    """
 
-                self.cursor.execute(create_table_query)
+                    cursor.execute(create_table_query)
+
+                self.cnx.commit()
                 retries = 0
                 break
-            except mysql.connector.Error as error:
+            except pymysql.MySQLError as error:
                 logging.error("Failed to connect to database: {}".format(error))
                 if retries < self.MAX_RETRIES - 1:
                     logging.info("Retrying in {} seconds...".format(self.RETRY_DELAY))
@@ -67,12 +70,12 @@ class Database:
         retries = 0
         while retries < self.MAX_RETRIES:
             try:
-                if self.cnx.is_connected() == False:
-                    self.connect_and_initialize()
-                self.cursor.execute(query, params)
+                with self.cnx.cursor() as cursor:
+                    cursor.execute(query, params)
+                self.cnx.commit()
                 retries = 0
                 return True
-            except mysql.connector.Error as error:
+            except pymysql.MySQLError as error:
                 logging.error("Failed to execute query: {}".format(error))
                 if retries < self.MAX_RETRIES - 1:
                     logging.info("Retrying in {} seconds...".format(self.RETRY_DELAY))
@@ -83,35 +86,29 @@ class Database:
         return False
 
     def __del__(self):
-        self.cursor.close()
         self.cnx.close()
 
     def add_guardian(self, address, guardian_type, guardian_info, signature):
-        signature_hash = hashlib.sha256(signature.encode()).hexdigest()
 
-        insert_query = "INSERT IGNORE INTO guardians (signature_hash, address, type, info, signature) VALUES (%s, %s, %s, %s, %s)"
-        insert_data = (signature_hash, address, guardian_type, guardian_info, signature)
+        insert_query = "INSERT IGNORE INTO guardians (address, type, info, signature) VALUES (%s, %s, %s, %s)"
+        insert_data = (address, guardian_type, guardian_info, signature)
 
         self.execute_query(insert_query, insert_data)
-        self.cnx.commit()
 
     def add_wallet_guardian(self, guardian_address, wallet_address):
         insert_query = "INSERT IGNORE INTO guardian_wallet (guardian_address, wallet_address) VALUES (%s, %s)"
         insert_data = (guardian_address, wallet_address)
         self.execute_query(insert_query, insert_data)
-        self.cnx.commit()
 
     def del_wallet_guardian(self, guardian_address, wallet_address):
         delete_query = "DELETE FROM guardian_wallet WHERE guardian_address = %s AND wallet_address = %s"
         delete_data = (guardian_address, wallet_address)
         self.execute_query(delete_query, delete_data)
-        self.cnx.commit()
 
     def del_all_guardians(self, wallet_address):
         delete_query = "DELETE FROM guardian_wallet WHERE wallet_address = %s"
         delete_data = (wallet_address,)
         self.execute_query(delete_query, delete_data)
-        self.cnx.commit()
 
 
     def get_guardians_by_wallet(self, wallet_address):
@@ -120,39 +117,44 @@ class Database:
             FROM guardian_wallet JOIN guardians ON guardian_wallet.guardian_address = guardians.address 
             WHERE guardian_wallet.wallet_address = %s
         """
-        if self.execute_query(query, (wallet_address,)):
-            results = self.cursor.fetchall()
+        results = None
+        with self.cnx.cursor() as cursor:
+            cursor.execute(query, (wallet_address,))
+            results = cursor.fetchall()
 
-            guardians = []
-            for row in results:
-                guardian = {
-                    'guardian': row[0],
-                    'type': row[1],
-                    'info': row[2]
-                }
-                guardians.append(guardian)
-            return guardians
+        guardians = []
+        for row in results:
+            guardian = {
+                'guardian': row['address'],
+                'type': row['type'],
+                'info': row['info']
+            }
+            guardians.append(guardian)
+        return guardians
 
     def get_wallets_by_guardian(self, guardian_address):
         query = "SELECT wallet_address FROM guardian_wallet WHERE guardian_address = %s"
-        if self.execute_query(query, (guardian_address,)):
-            results = self.cursor.fetchall()
-            return [wallet_address[0] for wallet_address in results]
+        results = None
+        with self.cnx.cursor() as cursor:
+            cursor.execute(query, (guardian_address,))
+            results = cursor.fetchall()
+        return [wallet_address['wallet_address'] for wallet_address in results]
 
 
     def get_guardians_by_address(self, address):
         query = "SELECT * FROM guardians WHERE address = %s"
+        results = None
+        with self.cnx.cursor() as cursor:
+            cursor.execute(query, (address,))
+            results = cursor.fetchall()
 
-        if self.execute_query(query, (address,)):
-            results = self.cursor.fetchall()
+        guardians = []
+        for row in results:
+            guardian = {
+                'guardian': address,
+                'type': row['type'],
+                'info': row['info']
+            }
+            guardians.append(guardian)
 
-            guardians = []
-            for row in results:
-                guardian = {
-                    'guardian': address,
-                    'type': row[1],
-                    'info': row[2]
-                }
-                guardians.append(guardian)
-
-            return guardians
+        return guardians

@@ -1,5 +1,4 @@
 from web3 import Web3, exceptions
-from eth_account.messages import encode_defunct
 from eth_utils import to_checksum_address
 
 class CustomerException(Exception):
