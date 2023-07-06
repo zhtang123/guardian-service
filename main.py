@@ -1,26 +1,27 @@
 from flask import Flask, request, jsonify
 import logging
 from database import Database
+from verifiers.wallet_verifier import WalletVerifier
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
 db = Database()
-
-@app.route('/guardian-wallet/email/', methods=['POST'])
+wallet_verifier = WalletVerifier(db)
+@app.route('/create/', methods=['POST'])
 def add_guardian_email():
     try:
         data = request.get_json()
 
         for guardian in data:
             address = guardian['guardian']
-            wallet_address = guardian['wallet']
             guardian_type = guardian['type']
             guardian_info = guardian['info']
             signature = guardian['signature']
 
             db.add_guardian(address, guardian_type, guardian_info, signature)
-            db.add_wallet_guardian(address,wallet_address)
 
         return jsonify({'code': 0, 'message': 'ok', 'data': None, 'success': True})
 
@@ -28,7 +29,18 @@ def add_guardian_email():
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'code': 1, 'message': 'insert_fail', 'data': None, 'success': False}), 500
 
-@app.route('/guardian-wallet/email/query/', methods=['POST'])
+@app.route('/update/<UserOpHash>', methods=['GET'])
+def update_guardian_wallet(UserOpHash):
+    logging.info("start update guardian <--> wallet")
+    try:
+        wallet_verifier.verify(UserOpHash, 'polygon')
+        return jsonify({'code': 0, 'message': 'ok', 'success': True})
+    except Exception as e:
+        logging.error(f"Error occurred: {str(e)}")
+        return jsonify({'code': 1, 'message': 'query_fail', 'success': False}), 500
+
+
+@app.route('/query/info', methods=['POST'])
 def query_guardian_email():
     try:
         data = request.get_json()
@@ -52,7 +64,7 @@ def query_guardian_email():
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'code': 1, 'message': 'query_fail', 'data': None, 'success': False}), 500
 
-@app.route('/guardian-wallet/get-wallet/<guardian_address>/', methods=['GET'])
+@app.route('/query/guardian2wallet/<guardian_address>/', methods=['GET'])
 def query_wallet_by_guardian(guardian_address):
     try:
         wallets = db.get_wallets_by_guardian(guardian_address)
@@ -62,7 +74,7 @@ def query_wallet_by_guardian(guardian_address):
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'code': 1, 'message': 'query_fail', 'data': None, 'success': False}), 500
 
-@app.route('/guardian-wallet/get-guardian/<wallet_address>/', methods=['GET'])
+@app.route('/query/wallet2guardian/<wallet_address>/', methods=['GET'])
 def query_guardian_by_wallet(wallet_address):
     try:
         guardians = db.get_guardians_by_wallet(wallet_address)
