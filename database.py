@@ -14,6 +14,7 @@ class Database:
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
+        logging.info(f"connect db {self.host}:{self.port} {self.user} ")
         self.connect_and_initialize()
 
     def connect_and_initialize(self):
@@ -98,6 +99,18 @@ class Database:
         insert_query = "INSERT IGNORE INTO guardian_wallet (guardian_address, wallet_address) VALUES (%s, %s)"
         insert_data = (guardian_address, wallet_address)
         self.execute_query(insert_query, insert_data)
+        self.cnx.commit()
+
+    def del_wallet_guardian(self, guardian_address, wallet_address):
+        delete_query = "DELETE FROM guardian_wallet WHERE guardian_address = %s AND wallet_address = %s"
+        delete_data = (guardian_address, wallet_address)
+        self.execute_query(delete_query, delete_data)
+        self.cnx.commit()
+
+    def del_all_guardians(self, wallet_address):
+        delete_query = "DELETE FROM guardian_wallet WHERE wallet_address = %s"
+        delete_data = (wallet_address,)
+        self.execute_query(delete_query, delete_data)
         self.cnx.commit()
 
 
