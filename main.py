@@ -29,11 +29,11 @@ def add_guardian_email():
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'code': 1, 'message': 'insert_fail', 'data': None, 'success': False}), 500
 
-@app.route('/update/<UserOpHash>', methods=['GET'])
-def update_guardian_wallet(UserOpHash):
+@app.route('/update/<transaction_hash>',methods=['GET'])
+def update_guardian_wallet(transaction_hash):
     logging.info("start update guardian <--> wallet")
     try:
-        wallet_verifier.verify(UserOpHash, 'polygon')
+        wallet_verifier.verify(transaction_hash, 'polygon')
         return jsonify({'code': 0, 'message': 'ok', 'success': True})
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
@@ -77,8 +77,8 @@ def query_wallet_by_guardian(guardian_address):
 @app.route('/query/wallet2guardian/<wallet_address>/', methods=['GET'])
 def query_guardian_by_wallet(wallet_address):
     try:
-        guardians = db.get_guardians_by_wallet(wallet_address)
-        return jsonify({'code': 0, 'message': 'ok', 'data': guardians, 'success': True})
+        threshold, guardians = db.get_guardians_by_wallet(wallet_address)
+        return jsonify({'code': 0, 'message': 'ok', 'threshold': threshold, 'data': guardians, 'success': True})
 
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")

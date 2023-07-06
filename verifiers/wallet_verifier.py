@@ -31,16 +31,16 @@ class WalletVerifier:
 
         logging.info("parse event start")
         ops = self.events_handler.get_transaction_events(chain, transaction_hash)
-
+        logging.info("parse event done")
         for op in ops:
-            if op['type'] == 'reset':
-                self.database.del_all_guardians(op['wallet'])
-                for guardian in op['guardians']:
-                    self.database.add_wallet_guardian(guardian, op['wallet'])
+            if op['type'] == 'change_threshold':
+                self.database.change_threshold(op['wallet'], op['threshold'])
             elif op['type'] == 'add':
                 self.database.add_wallet_guardian(op['guardian'], op['wallet'])
             else:
                 self.database.del_wallet_guardian(op['guardian'], op['wallet'])
+        logging.info("update db done")
+
 
 
 

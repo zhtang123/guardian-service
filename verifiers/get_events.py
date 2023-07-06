@@ -7,9 +7,9 @@ class EVMChainHandler:
 
         # Event signatures
         self.event_signatures = {
-            "ResetGuardians": Web3.keccak(text="ResetGuardians(address,uint256,address[])").hex(),
             "AddGuardian": Web3.keccak(text="AddGuardian(address,address)").hex(),
             "RevokeGuardian": Web3.keccak(text="RevokeGuardian(address,address)").hex(),
+            "ChangeThreshold": Web3.keccak(text="ChangeThreshold(address,uint256)").hex()
         }
 
     @staticmethod
@@ -32,8 +32,8 @@ class EVMChainHandler:
 
         for log in tx_receipt['logs']:
             event_signature = log['topics'][0].hex()
-            if event_signature == self.event_signatures['ResetGuardians']:
-                events.append(self.parse_reset_guardians(log))
+            if event_signature == self.event_signatures['ChangeThreshold']:
+                events.append(self.parse_change_threshold(log))
             elif event_signature == self.event_signatures['AddGuardian']:
                 events.append(self.parse_add_guardian(log))
             elif event_signature == self.event_signatures['RevokeGuardian']:
@@ -42,24 +42,19 @@ class EVMChainHandler:
         return events
 
     @staticmethod
-    def parse_reset_guardians(log):
-        topics = log['topics'][1:]  # ignore the first topic, the event signature
-        data = log['data']# remove the '0x' prefix
+    def parse_change_threshold(log):
+        data = log['data']  # remove the '0x' prefix
 
-        # ResetGuardians(address wallet, uint256 threshold, address[] guardians)
-        wallet = Web3.to_checksum_address(data[20:32].hex())
-        threshold = int(data[44:64], 16)  # each value is 32 bytes = 64 hex digits
-
-        # 'address[]' type is not indexed and may be encoded in data.
-        guardians_data = data[64:]
-        guardians = [Web3.to_checksum_address(guardians_data[i*32+12:(i+1)*32].hex()) for i in range(len(guardians_data) // 32)]
+        # ChangeThreshold(address wallet, uint256 threshold)
+        wallet = Web3.to_checksum_address(data[12:32].hex())
+        threshold = int(data[44:64].hex(), 16)  # each value is 32 bytes = 64 hex digits
 
         return {
-            'type': "reset",
+            'type': "change_threshold",
             'wallet': wallet,
-            'threshold': threshold,
-            'guardians': guardians
+            'threshold': threshold
         }
+
 
     @staticmethod
     def parse_add_guardian(log):
