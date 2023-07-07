@@ -5,7 +5,6 @@ class EVMChainHandler:
     def __init__(self, config_file):
         self.chain_config = self.load_chain_config(config_file)
 
-        # Event signatures
         self.event_signatures = {
             "AddGuardian": Web3.keccak(text="AddGuardian(address,address)").hex(),
             "RevokeGuardian": Web3.keccak(text="RevokeGuardian(address,address)").hex(),
@@ -20,7 +19,7 @@ class EVMChainHandler:
     def get_chain_info(self, chain_id):
         return self.chain_config.get(str(chain_id))
 
-    def get_transaction_events(self, chain_id, tx_hash):
+    def get_transaction_events(self, tx_hash, chain_id):
         chain = self.get_chain_info(chain_id)
         if not chain:
             raise ValueError(f'Unsupported chain ID: {chain_id}')
@@ -43,11 +42,11 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_change_threshold(log):
-        data = log['data']  # remove the '0x' prefix
+        topic = log['topics']
+        data = log['data']
 
-        # ChangeThreshold(address wallet, uint256 threshold)
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        threshold = int(data[44:64].hex(), 16)  # each value is 32 bytes = 64 hex digits
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        threshold = int(data[0:32].hex(), 16)
 
         return {
             'type': "change_threshold",
@@ -58,11 +57,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_add_guardian(log):
-        data = log['data']  # remove the '0x' prefix
+        topic = log['topics']
 
-        # AddGuardian(address wallet, address guardian)
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())  # data field contains the non-indexed parameters
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        guardian = Web3.to_checksum_address(topic[2][12:32].hex())
 
         return {
             'type': "add",
@@ -72,10 +70,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_revoke_guardian(log):
-        data = log['data']
+        topic = log['topics']
 
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())  # data field contains the non-indexed parameters
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        guardian = Web3.to_checksum_address(topic[2][12:32].hex())
 
         return {
             'type': "revoke",
