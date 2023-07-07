@@ -5,7 +5,6 @@ class EVMChainHandler:
     def __init__(self, config_file):
         self.chain_config = self.load_chain_config(config_file)
 
-        # Event signatures
         self.event_signatures = {
             "AddGuardian": Web3.keccak(text="AddGuardian(address,address)").hex(),
             "RevokeGuardian": Web3.keccak(text="RevokeGuardian(address,address)").hex(),
@@ -43,11 +42,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_change_threshold(log):
-        data = log['data']  # remove the '0x' prefix
+        data = log['data']
 
-        # ChangeThreshold(address wallet, uint256 threshold)
         wallet = Web3.to_checksum_address(data[12:32].hex())
-        threshold = int(data[44:64].hex(), 16)  # each value is 32 bytes = 64 hex digits
+        threshold = int(data[44:64].hex(), 16)
 
         return {
             'type': "change_threshold",
@@ -58,11 +56,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_add_guardian(log):
-        data = log['data']  # remove the '0x' prefix
+        data = log['data']
 
-        # AddGuardian(address wallet, address guardian)
         wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())  # data field contains the non-indexed parameters
+        guardian = Web3.to_checksum_address(data[44:64].hex())
 
         return {
             'type': "add",
@@ -75,7 +72,7 @@ class EVMChainHandler:
         data = log['data']
 
         wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())  # data field contains the non-indexed parameters
+        guardian = Web3.to_checksum_address(data[44:64].hex())
 
         return {
             'type': "revoke",
