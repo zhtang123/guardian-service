@@ -19,7 +19,7 @@ class EVMChainHandler:
     def get_chain_info(self, chain_id):
         return self.chain_config.get(str(chain_id))
 
-    def get_transaction_events(self, chain_id, tx_hash):
+    def get_transaction_events(self, tx_hash, chain_id):
         chain = self.get_chain_info(chain_id)
         if not chain:
             raise ValueError(f'Unsupported chain ID: {chain_id}')
@@ -42,10 +42,11 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_change_threshold(log):
+        topic = log['topics']
         data = log['data']
 
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        threshold = int(data[44:64].hex(), 16)
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        threshold = int(data[0:32].hex(), 16)
 
         return {
             'type': "change_threshold",
@@ -56,10 +57,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_add_guardian(log):
-        data = log['data']
+        topic = log['topics']
 
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        guardian = Web3.to_checksum_address(topic[2][12:32].hex())
 
         return {
             'type': "add",
@@ -69,10 +70,10 @@ class EVMChainHandler:
 
     @staticmethod
     def parse_revoke_guardian(log):
-        data = log['data']
+        topic = log['topics']
 
-        wallet = Web3.to_checksum_address(data[12:32].hex())
-        guardian = Web3.to_checksum_address(data[44:64].hex())
+        wallet = Web3.to_checksum_address(topic[1][12:32].hex())
+        guardian = Web3.to_checksum_address(topic[2][12:32].hex())
 
         return {
             'type': "revoke",

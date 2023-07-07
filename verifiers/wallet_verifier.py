@@ -11,20 +11,20 @@ class WalletVerifier:
     def __init__(self, database, max_block_number=0):
         self.events_handler = EVMChainHandler("./verifiers/chains.json")
         self.database = database
-        self.max_block_number = max_block_number
+        self.max_block_number = {}
 
     def verify(self, transaction_hash, chain):
 
         logging.info("parse event start")
-        ops = self.events_handler.get_transaction_events(chain, transaction_hash)
+        ops = self.events_handler.get_transaction_events(transaction_hash, chain)
         logging.info("parse event done")
         for op in ops:
             if op['type'] == 'change_threshold':
-                self.database.change_threshold(op['wallet'], op['threshold'])
+                self.database.change_threshold(op['wallet'], op['threshold'], chain)
             elif op['type'] == 'add':
-                self.database.add_wallet_guardian(op['guardian'], op['wallet'])
+                self.database.add_wallet_guardian(op['guardian'], op['wallet'], chain)
             else:
-                self.database.del_wallet_guardian(op['guardian'], op['wallet'])
+                self.database.del_wallet_guardian(op['guardian'], op['wallet'], chain)
         logging.info("update db done")
 
 
