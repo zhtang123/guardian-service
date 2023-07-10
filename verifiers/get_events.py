@@ -8,7 +8,9 @@ class EVMChainHandler:
         self.event_signatures = {
             "AddGuardian": Web3.keccak(text="AddGuardian(address,address)").hex(),
             "RevokeGuardian": Web3.keccak(text="RevokeGuardian(address,address)").hex(),
-            "ChangeThreshold": Web3.keccak(text="ChangeThreshold(address,uint256)").hex()
+            "ChangeThreshold": Web3.keccak(text="ChangeThreshold(address,uint256)").hex(),
+            "EnabledValidator": Web3.keccak(text="EnabledValidator(address)").hex(),
+            "DisabledValidator": Web3.keccak(text="DisabledValidator(address)").hex()
         }
 
     @staticmethod
@@ -37,8 +39,30 @@ class EVMChainHandler:
                 events.append(self.parse_add_guardian(log))
             elif event_signature == self.event_signatures['RevokeGuardian']:
                 events.append(self.parse_revoke_guardian(log))
+            elif event_signature == self.event_signatures['EnabledValidator']:
+                result = self.parse_change_validator_status(log, chain, 1)
+                if result:
+                    events.append(result)
+            elif event_signature == self.event_signatures['DisabledValidator']:
+                result = self.parse_change_validator_status(log, chain, 0)
+                if result:
+                    events.append(result)
 
         return events
+
+
+    def parse_change_validator_status(self, log, chain, status):
+        topic = log['topics']
+        sender = log['address']
+
+        validator = topic[1][12:32].hex()
+        if validator in chain['guardian_validator']:
+            return{
+                'type': "change_guardian_status",
+                'wallet': sender,
+                'status': status
+            }
+
 
     @staticmethod
     def parse_change_threshold(log):
