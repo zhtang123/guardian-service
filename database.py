@@ -78,6 +78,7 @@ class Database:
                   address VARCHAR(255) NOT NULL,
                   chain VARCHAR(16) NOT NULL,
                   threshold INT NOT NULL,
+                  status BOOL DEFAULT TRUE,
                   PRIMARY KEY (address, chain)
                 );
             """
@@ -107,8 +108,18 @@ class Database:
         self.execute_query(insert_query, (guardian_address, wallet_address, chain))
 
     @retry_on_failure
+    def change_guardian_status(self, wallet_address, status, chain):
+        update_query = f"UPDATE wallets SET status = {status} WHERE address = '{wallet_address}' AND chain = '{chain}'"
+        self.execute_query(update_query)
+
+    @retry_on_failure
     def change_threshold(self, address, threshold, chain):
-        query = "INSERT INTO wallets (address, threshold, chain) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE threshold = %s"
+        query = """
+            INSERT INTO wallets (address, threshold, chain) 
+            VALUES (%s, %s, %s) 
+            ON DUPLICATE KEY UPDATE 
+                threshold = %s
+        """
         self.execute_query(query, (address, threshold, chain, threshold))
 
     @retry_on_failure
@@ -118,12 +129,18 @@ class Database:
 
     @retry_on_failure
     def get_guardians_by_wallet(self, wallet_address, chain):
+        check_query = "SELECT status FROM wallets WHERE address = %s AND chain = %s"
+        with self.cnx.cursor() as cursor:
+            cursor.execute(check_query, (wallet_address, chain))
+            result = cursor.fetchone()
+            if result is None or result['status'] == 0:
+                return 0, []
+
         guardian_query = """
             SELECT guardians.address, guardians.type, guardians.info 
             FROM guardian_wallet JOIN guardians 
             ON guardian_wallet.guardian_address = guardians.address 
-            AND guardian_wallet.chain = guardians.chain
-            WHERE guardian_wallet.wallet_address = %s AND guardian_wallet.chain = %s
+            WHERE guardian_wallet.wallet_address = %s AND guardian_wallet.chain = %s 
         """
         threshold_query = """
             SELECT threshold 
@@ -139,13 +156,18 @@ class Database:
         return threshold, guardians
 
     @retry_on_failure
-    def get_wallets_by_guardian(self, guardian_address, chain):
-        query = "SELECT wallet_address FROM guardian_wallet WHERE guardian_address = %s AND chain = %s"
+    def get_wallets_by_guardian(self, guardian_address):
+        query = """
+            SELECT gw.wallet_address, gw.chain 
+            FROM guardian_wallet gw
+            LEFT JOIN wallets w on gw.wallet_address = w.address AND gw.chain = w.chain
+            WHERE gw.guardian_address = %s AND w.status = 1
+        """
         with self.cnx.cursor() as cursor:
-            cursor.execute(query, (guardian_address, chain))
+            cursor.execute(query, (guardian_address, ))
             results = cursor.fetchall()
 
-        return [row['wallet_address'] for row in results]
+        return [{"wallet_address": row['wallet_address'], "chain": row['chain']} for row in results]
 
     @retry_on_failure
     def get_guardians_by_address(self, address):

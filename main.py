@@ -67,16 +67,21 @@ def query_guardian_email():
             results.append(result)
     return results
 
-@app.route('/query/guardian2wallet/<guardian_address>/', methods=['GET'])
+@app.route('/query/guardian2wallet/', methods=['POST'])
 @log_and_catch_error
-def query_wallet_by_guardian(guardian_address):
+def query_wallet_by_guardian():
+    data = request.get_json()
+    guardian_address = data['address']
     wallets = db.get_wallets_by_guardian(guardian_address)
     return wallets
 
-@app.route('/query/wallet2guardian/<wallet_address>/', methods=['GET'])
+@app.route('/query/wallet2guardian/', methods=['POST'])
 @log_and_catch_error
-def query_guardian_by_wallet(wallet_address):
-    threshold, guardians = db.get_guardians_by_wallet(wallet_address)
+def query_guardian_by_wallet():
+    data = request.get_json()
+    wallet_address = data['address']
+    chain = data['chain']
+    threshold, guardians = db.get_guardians_by_wallet(wallet_address, chain)
     return {'threshold': threshold, 'guardians': guardians}
 
 if __name__ == '__main__':

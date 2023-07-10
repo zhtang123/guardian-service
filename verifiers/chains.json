@@ -1,6 +1,9 @@
 {
     "polygon": {
-        "rpc": "https://polygon-mumbai.g.alchemy.com/v2/TtBLcWc1M0U5hNcYzpMdMHxxWi9uuZW-"
+        "rpc": "https://polygon-mumbai.g.alchemy.com/v2/TtBLcWc1M0U5hNcYzpMdMHxxWi9uuZW-",
+        "guardian_validator": [
+            "0x4DfBc86Ca1c8264708a34f0a95CB2F70b8DFB6a0"
+        ]
     },
     "scroll": {
         "rpc": "https://scroll-alpha.unifra.io/v1/44976e0f7e344f61a50ea858861e5836"

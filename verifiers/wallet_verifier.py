@@ -23,8 +23,11 @@ class WalletVerifier:
                 self.database.change_threshold(op['wallet'], op['threshold'], chain)
             elif op['type'] == 'add':
                 self.database.add_wallet_guardian(op['guardian'], op['wallet'], chain)
-            else:
+            elif op['type'] == 'revoke':
                 self.database.del_wallet_guardian(op['guardian'], op['wallet'], chain)
+            elif op['type'] == 'change_guardian_status':
+                self.database.change_guardian_status(op['wallet'], op['status'], chain)
+
         logging.info("update db done")
 
 
